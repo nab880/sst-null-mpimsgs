@@ -91,14 +91,9 @@ RankSyncSerialSkip::registerLink(
         comm_map[to_rank.rank].rbuf           = new char[4096];
         comm_map[to_rank.rank].local_size     = 4096;
         comm_map[to_rank.rank].remote_size    = 4096;
-        comm_map[to_rank.rank].guarantee_time = 0;
-        comm_map[to_rank.rank].delay = link->getLatency();
     }
     else {
         queue = comm_map[to_rank.rank].squeue;
-        if(link->getLatency() < comm_map[to_rank.rank].delay) {
-            comm_map[to_rank.rank].delay = link->getLatency();
-        }
     }
 
     link_maps[to_rank.rank][name] = reinterpret_cast<uintptr_t>(link);

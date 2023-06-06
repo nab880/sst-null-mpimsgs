@@ -89,7 +89,7 @@ NullRankSyncSerialSkip::registerLink(
     }
     else {
         queue = comm_map[to_rank.rank].squeue;
-        if(link->getLatency() < comm_map[to_rank.rank].delay) {
+        if(latency < comm_map[to_rank.rank].delay) {
             comm_map[to_rank.rank].delay = latency;
         }
     }
@@ -201,7 +201,7 @@ NullRankSyncSerialSkip::sendData(int to_rank) {
 
     NullMessageEvent* ev = new NullMessageEvent(this, to_rank);
     SimTime_t current_cycle = Simulation_impl::getSimulation()->getCurrentSimCycle();
-    SimTime_t next_send = current_cycle + comm_map[to_rank].delay;
+    SimTime_t next_send = current_cycle + (comm_map[to_rank].delay * 0.9f);
 
     Simulation_impl::getSimulation()->insertActivity(next_send, ev);
     //std::cout << current_cycle << ":" << my_rank << ":scheduling next data sent time to " << to_rank << " at time " << next_send << std::endl;
