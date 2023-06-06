@@ -42,7 +42,7 @@ public:
 
     /** Register a Link which this Sync Object is responsible for */
     virtual ActivityQueue*
-         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link) = 0;
+         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency) = 0;
     void exchangeLinkInfo(uint32_t my_rank);
 
     virtual void execute(int thread)                                              = 0;
@@ -126,7 +126,7 @@ public:
 
     /** Register a Link which this Sync Object is responsible for */
     ActivityQueue*
-         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link);
+         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency);
     void exchangeLinkInfo();
     void execute(void) override;
 

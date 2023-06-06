@@ -8,7 +8,7 @@
 // This file is part of the SST software package. For license
 // information, see the LICENSE file in the top level directory of the
 // distribution.
-
+#include <iostream>
 #include "sst_config.h"
 
 #include "sst/core/sync/syncManager.h"
@@ -18,6 +18,7 @@
 #include "sst/core/profile/syncProfileTool.h"
 #include "sst/core/simulation_impl.h"
 #include "sst/core/sync/rankSyncParallelSkip.h"
+#include "sst/core/sync/nullRankSyncSerialSkip.h"
 #include "sst/core/sync/rankSyncSerialSkip.h"
 #include "sst/core/sync/threadSyncDirectSkip.h"
 #include "sst/core/sync/threadSyncQueue.h"
@@ -87,7 +88,7 @@ public:
     /** Register a Link which this Sync Object is responsible for */
     ActivityQueue* registerLink(
         const RankInfo& UNUSED(to_rank), const RankInfo& UNUSED(from_rank), const std::string& UNUSED(name),
-        Link* UNUSED(link)) override
+        Link* UNUSED(link), SimTime_t UNUSED(latency)) override
     {
         return nullptr;
     }
@@ -255,7 +256,7 @@ SyncManager::SyncManager(
             b.resize(num_ranks.thread);
         }
         if ( min_part != MAX_SIMTIME_T ) {
-            if ( num_ranks.thread == 1 ) { rankSync = new RankSyncSerialSkip(num_ranks, minPartTC); }
+            if ( num_ranks.thread == 1 ) { rankSync = new NullRankSyncSerialSkip(num_ranks, minPartTC); }
             else {
                 rankSync = new RankSyncParallelSkip(num_ranks, minPartTC);
             }
@@ -290,7 +291,7 @@ SyncManager::~SyncManager() {}
 
 /** Register a Link which this Sync Object is responsible for */
 ActivityQueue*
-SyncManager::registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link)
+SyncManager::registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency)
 {
     if ( to_rank == from_rank ) {
         return nullptr; // This should never happen
@@ -310,7 +311,7 @@ SyncManager::registerLink(const RankInfo& to_rank, const RankInfo& from_rank, co
     }
     else {
         // Different rank.  Send info onto the RankSync
-        return rankSync->registerLink(to_rank, from_rank, name, link);
+        return rankSync->registerLink(to_rank, from_rank, name, link, latency);
     }
 }
 
@@ -325,7 +326,7 @@ SyncManager::execute(void)
 {
 
     SST_SYNC_PROFILE_START
-
+    //std::cout << "SyncManager::Execute, next sync " << next_rankSync << " " << min_part << std::endl;
     if ( profile_tools ) profile_tools->syncManagerStart();
 
     switch ( next_sync_type ) {
@@ -418,14 +419,18 @@ SyncManager::prepareForComplete()
 void
 SyncManager::computeNextInsert()
 {
+    /*
     if ( rankSync->getNextSyncTime() <= threadSync->getNextSyncTime() ) {
         next_sync_type = RANK;
         sim->insertActivity(rankSync->getNextSyncTime(), this);
+        std::cout << "Rank: " << rank.rank << " ComputeNextSyncTime: " << rankSync->getNextSyncTime() << std::endl;
     }
     else {
         next_sync_type = THREAD;
         sim->insertActivity(threadSync->getNextSyncTime(), this);
+        std::cout << "Thread: " << rank.rank << " ComputeNextSyncTime: " << threadSync->getNextSyncTime() << std::endl;
     }
+    */
 }
 
 void

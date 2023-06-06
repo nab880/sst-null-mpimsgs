@@ -3,6 +3,8 @@
 #
 
 sst_core_sources += \
+	sync/nullRankSyncSerialSkip.h \
+	sync/nullRankSyncSerialSkip.cc \
 	sync/rankSyncParallelSkip.h \
 	sync/rankSyncParallelSkip.cc \
 	sync/rankSyncSerialSkip.h \

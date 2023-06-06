@@ -58,6 +58,7 @@ RankSyncParallelSkip::RankSyncParallelSkip(RankInfo num_ranks, TimeConverter* UN
     slaveExchangeDoneBarrier(num_ranks.thread),
     allDoneBarrier(num_ranks.thread)
 {
+    std::cout << "RankSyncParallelSkip" << std::endl;
     // TraceFunction(CALL_INFO_LONG);
     max_period     = Simulation_impl::getSimulation()->getMinPartTC();
     myNextSyncTime = max_period->getFactor();
@@ -91,7 +92,7 @@ RankSyncParallelSkip::~RankSyncParallelSkip()
 
 ActivityQueue*
 RankSyncParallelSkip::registerLink(
-    const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link)
+    const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency)
 {
     std::lock_guard<Core::ThreadSafe::Spinlock> slock(lock);
 

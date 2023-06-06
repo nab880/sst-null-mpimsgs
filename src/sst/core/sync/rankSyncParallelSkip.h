@@ -39,7 +39,7 @@ public:
 
     /** Register a Link which this Sync Object is responsible for */
     ActivityQueue*
-         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link) override;
+         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency) override;
     void execute(int thread) override;
 
     /** Cause an exchange of Untimed Data to occur */

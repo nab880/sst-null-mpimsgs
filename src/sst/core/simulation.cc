@@ -37,7 +37,7 @@
 #include "sst/core/timeVortex.h"
 #include "sst/core/unitAlgebra.h"
 #include "sst/core/warnmacros.h"
-
+#include "sst/core/impl/timevortex/nullMessagePQ.h"
 #include <cinttypes>
 #include <utility>
 
@@ -184,9 +184,9 @@ Simulation_impl::Simulation_impl(Config* cfg, RankInfo my_rank, RankInfo num_ran
     Params p;
     // params get passed twice - both the params and a ctor argument
     direct_interthread = cfg->interthread_links();
-    std::string timevortex_type(cfg->timeVortex());
+    std::string timevortex_type("sst.timevortex.null_message_priority_queue");
     if ( direct_interthread && num_ranks.thread > 1 ) timevortex_type = timevortex_type + ".ts";
-    timeVortex = factory->Create<TimeVortex>(timevortex_type, p);
+    timeVortex = new IMPL::NullMessagePQ(p);
     if ( my_rank.thread == 0 ) { m_exit = new Exit(num_ranks.thread, num_ranks.rank == 1); }
 
     if ( cfg->heartbeatPeriod() != "" && my_rank.thread == 0 ) {
@@ -460,7 +460,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
 
             // For local, just register link with threadSync object so
             // it can map link_id to link*
-            ActivityQueue* sync_q = syncManager->registerLink(rank[remote], rank[local], clink->name, lp.getRight());
+            ActivityQueue* sync_q = syncManager->registerLink(rank[remote], rank[local], clink->name, lp.getRight(), clink->latency[local]);
 
             lp.getLeft()->send_queue = sync_q;
             lp.getRight()->setAsSyncLink();

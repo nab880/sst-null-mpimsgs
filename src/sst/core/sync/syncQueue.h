@@ -31,6 +31,7 @@ class SyncQueue : public ActivityQueue
 public:
     struct Header
     {
+        SimTime_t guarantee_time;
         uint32_t mode;
         uint32_t count;
         uint32_t buffer_size;

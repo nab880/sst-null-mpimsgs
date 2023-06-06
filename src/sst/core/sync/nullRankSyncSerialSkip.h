@@ -18,22 +18,52 @@
 
 #include <map>
 
+#ifdef SST_CONFIG_HAVE_MPI
+DISABLE_WARN_MISSING_OVERRIDE
+#include <mpi.h>
+REENABLE_WARNING
+#define UNUSED_WO_MPI(x) x
+#else
+#define UNUSED_WO_MPI(x) UNUSED(x)
+#endif
+
+
 namespace SST {
 
 class SyncQueue;
 class TimeConverter;
 
-class RankSyncSerialSkip : public RankSync
+class NullMessageSentBuffer {
+public:
+    NullMessageSentBuffer() : resize(false), buffer(nullptr) {}
+    ~NullMessageSentBuffer() {} // buffer deleted elsewhere
+
+    char* getBuffer() { return buffer; }
+
+    void setBuffer(char* buf) { buffer = buf;}
+
+    bool isResize() const { return resize; }
+    void setResize() { resize = true; }
+
+    MPI_Request* getRequest() { return &request; }
+
+private:
+    bool resize;
+    char* buffer;
+    MPI_Request request;
+};
+
+
+class NullRankSyncSerialSkip : public RankSync
 {
 public:
     /** Create a new Sync object which fires with a specified period */
-    RankSyncSerialSkip(RankInfo num_ranks, TimeConverter* minPartTC);
-    virtual ~RankSyncSerialSkip();
+    NullRankSyncSerialSkip(RankInfo num_ranks, TimeConverter* minPartTC);
+    virtual ~NullRankSyncSerialSkip();
 
     /** Register a Link which this Sync Object is responsible for */
     ActivityQueue*
          registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency) override;
-    void execute(int thread) override;
 
     /** Cause an exchange of Untimed Data to occur */
     void exchangeLinkUntimedData(int thread, std::atomic<int>& msg_count) override;
@@ -42,15 +72,28 @@ public:
     /** Prepare for the complete() stage */
     void prepareForComplete() override;
 
-    SimTime_t getNextSyncTime() override { return myNextSyncTime; }
+    void execute(int thread) override {}
 
     uint64_t getDataSize() const override;
 
-private:
-    static SimTime_t myNextSyncTime;
+    SimTime_t getSafeTime() const { return safe_time; }
 
-    // Function that actually does the exchange during run
-    void exchange();
+    SimTime_t calculateGuaranteeTime(int rank);
+
+    void calculateSafeTime();
+
+    void initialize();
+
+    void sendData(int to_rank);
+
+    void receiveData(bool blocking);
+
+    void testSendComplete();
+
+
+private:
+
+    MPI_Request* requests;
 
     struct comm_pair
     {
@@ -64,18 +107,35 @@ private:
 
     typedef std::map<int, comm_pair>         comm_map_t;
     typedef std::map<std::string, uintptr_t> link_map_t;
+    typedef std::map<int, int>               request_map_t;
 
     // TimeConverter* period;
     comm_map_t comm_map;
     link_map_t link_map;
+    request_map_t request_map;
+    std::list<NullMessageSentBuffer> output_buffers;
 
-    //SimTime_t delay;
-    //SimTime_t guarantee_time;
+    SimTime_t safe_time;
 
-    double mpiWaitTime;
     double deserializeTime;
 
     Core::ThreadSafe::Spinlock lock;
+};
+
+class NullMessageEvent : public Action {
+public:
+    NullMessageEvent(NullRankSyncSerialSkip* skip, int rank) : skip(skip), rank(rank) {
+
+    }
+
+    void execute(void) override {
+        //std::cout << "NullMessageEvent: " << rank << std::endl;
+        skip->sendData(rank);
+    }
+
+private:
+    NullRankSyncSerialSkip* skip;
+    int rank;
 };
 
 } // namespace SST
