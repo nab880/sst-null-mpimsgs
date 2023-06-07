@@ -660,10 +660,12 @@ Simulation_impl::run()
 #endif
 
     run_phase_start_time = sst_get_cpu_time();
-
+    SimTime_t oldSimCycle;
     while ( LIKELY(!endSim) ) {
         current_activity = timeVortex->pop();
+        oldSimCycle = currentSimCycle;
         currentSimCycle  = current_activity->getDeliveryTime();
+        assert(currentSimCycle >= oldSimCycle); //sanity check
         currentPriority  = current_activity->getPriority();
         current_activity->execute();
 

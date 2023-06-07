@@ -72,7 +72,7 @@ public:
     /** Prepare for the complete() stage */
     void prepareForComplete() override;
 
-    void execute(int thread) override {}
+    void execute(int UNUSED(thread)) override {}
 
     uint64_t getDataSize() const override;
 
