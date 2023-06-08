@@ -49,11 +49,12 @@ NullMessagePQ::pop()
     //uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
 
     assert(null_skip);
-    Activity* ret_val = data.top();
 
     null_skip->receiveData(false);
 
     null_skip->calculateSafeTime();
+
+    Activity* ret_val = data.top();
 
     while(ret_val->getDeliveryTime() > null_skip->getSafeTime()) {
         //std::cout << ret_val->getDeliveryTime() << " " << null_skip->getSafeTime() << std::endl;
