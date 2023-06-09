@@ -9,8 +9,8 @@
 // information, see the LICENSE file in the top level directory of the
 // distribution.
 
-#ifndef SST_CORE_SYNC_RANKSYNCSERIALSKIP_H
-#define SST_CORE_SYNC_RANKSYNCSERIALSKIP_H
+#ifndef SST_CORE_SYNC_NULLRANKSYNCSERIALSKIP_H
+#define SST_CORE_SYNC_NULLRANKSYNCSERIALSKIP_H
 
 #include "sst/core/sst_types.h"
 #include "sst/core/sync/syncManager.h"

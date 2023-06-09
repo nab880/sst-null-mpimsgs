@@ -37,8 +37,8 @@ class NullMessagePQ : public TimeVortexPQ
 
 public:
     SST_ELI_REGISTER_DERIVED(
+        TimeVortex,
         NullMessagePQ,
-        TimeVortexPQ,
         "sst",
         "timevortex.null_message_priority_queue",
         SST_ELI_ELEMENT_VERSION(1,0,0),
@@ -48,7 +48,7 @@ public:
     // TimeVortexPQ();
     NullMessagePQ(Params& params);
     ~NullMessagePQ();
-
+    SST_ELI_EXPORT(NullMessagePQ)
 
     void setNullSkip(NullRankSyncSerialSkip* skip);
 
@@ -58,7 +58,7 @@ public:
     //void      insert(Activity* activity) override;
     Activity* pop() override;
 
-    SST_ELI_EXPORT(NullMessagePQ)
+
     /** Print the state of the TimeVortex */
     //void print(Output& out) const override;
 

@@ -488,6 +488,7 @@ public:
     // Rank information
     RankInfo my_rank;
     RankInfo num_ranks;
+    std::string                 timevortex_type;
 
     std::string                 output_directory;
     static SharedRegionManager* sharedRegionManager;

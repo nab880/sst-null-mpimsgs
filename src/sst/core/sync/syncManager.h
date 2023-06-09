@@ -121,7 +121,7 @@ class SyncManager : public Action
 public:
     SyncManager(
         const RankInfo& rank, const RankInfo& num_ranks, TimeConverter* minPartTC, SimTime_t min_part,
-        const std::vector<SimTime_t>& interThreadLatencies);
+        const std::vector<SimTime_t>& interThreadLatencies, const std::string timevortex_type);
     virtual ~SyncManager();
 
     /** Register a Link which this Sync Object is responsible for */
@@ -152,6 +152,7 @@ private:
     // static SimTime_t min_next_time;
     // static int min_count;
 
+    std::string timevortex_type;
     static RankSync* rankSync;
     static SimTime_t next_rankSync;
     ThreadSync*      threadSync;

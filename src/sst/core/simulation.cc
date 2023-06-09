@@ -184,9 +184,11 @@ Simulation_impl::Simulation_impl(Config* cfg, RankInfo my_rank, RankInfo num_ran
     Params p;
     // params get passed twice - both the params and a ctor argument
     direct_interthread = cfg->interthread_links();
-    std::string timevortex_type("sst.timevortex.null_message_priority_queue");
+    //std::string timevortex_type(cfg->timeVortex());
+    timevortex_type = cfg->timeVortex();
     if ( direct_interthread && num_ranks.thread > 1 ) timevortex_type = timevortex_type + ".ts";
-    timeVortex = new IMPL::NullMessagePQ(p);
+    timeVortex = factory->Create<TimeVortex>(timevortex_type, p); 
+    std::cout << "TimeVortex: " << timevortex_type << std::endl;
     if ( my_rank.thread == 0 ) { m_exit = new Exit(num_ranks.thread, num_ranks.rank == 1); }
 
     if ( cfg->heartbeatPeriod() != "" && my_rank.thread == 0 ) {
@@ -299,7 +301,7 @@ Simulation_impl::processGraphInfo(ConfigGraph& graph, const RankInfo& UNUSED(myR
     // we are single rank/single thread because it also manages the
     // Exit and Heartbeat actions.
     syncManager =
-        new SyncManager(my_rank, num_ranks, minPartTC = minPartToTC(min_part), min_part, interThreadLatencies);
+        new SyncManager(my_rank, num_ranks, minPartTC = minPartToTC(min_part), min_part, interThreadLatencies, timevortex_type);
 
     // Check to see if the SyncManager profile tool is installed
     auto tools = getProfileTool<Profile::SyncProfileTool>("sync");

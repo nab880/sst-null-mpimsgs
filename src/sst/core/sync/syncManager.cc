@@ -239,12 +239,13 @@ private:
 
 SyncManager::SyncManager(
     const RankInfo& rank, const RankInfo& num_ranks, TimeConverter* minPartTC, SimTime_t min_part,
-    const std::vector<SimTime_t>& UNUSED(interThreadLatencies)) :
+    const std::vector<SimTime_t>& UNUSED(interThreadLatencies), const std::string timevortex_type) :
     Action(),
     rank(rank),
     num_ranks(num_ranks),
     threadSync(nullptr),
-    min_part(min_part)
+    min_part(min_part),
+    timevortex_type(timevortex_type)
 {
     sim = Simulation_impl::getSimulation();
 
@@ -256,7 +257,14 @@ SyncManager::SyncManager(
             b.resize(num_ranks.thread);
         }
         if ( min_part != MAX_SIMTIME_T ) {
-            if ( num_ranks.thread == 1 ) { rankSync = new NullRankSyncSerialSkip(num_ranks, minPartTC); }
+            if ( num_ranks.thread == 1) {
+                if(timevortex_type == "sst.timevortex.null_message_priority_queue") { 
+                    rankSync = new NullRankSyncSerialSkip(num_ranks, minPartTC); 
+                }
+                else {
+                    rankSync = new RankSyncSerialSkip(num_ranks, minPartTC);
+                }
+            }
             else {
                 rankSync = new RankSyncParallelSkip(num_ranks, minPartTC);
             }
@@ -419,18 +427,19 @@ SyncManager::prepareForComplete()
 void
 SyncManager::computeNextInsert()
 {
-    /*
+    if(timevortex_type == "sst.timevortex.null_message_priority_queue") {
+        return;
+    }
+    std:;cout << "computeNextInsert: " << rankSync->getNextSyncTime();
     if ( rankSync->getNextSyncTime() <= threadSync->getNextSyncTime() ) {
         next_sync_type = RANK;
         sim->insertActivity(rankSync->getNextSyncTime(), this);
-        std::cout << "Rank: " << rank.rank << " ComputeNextSyncTime: " << rankSync->getNextSyncTime() << std::endl;
     }
     else {
         next_sync_type = THREAD;
         sim->insertActivity(threadSync->getNextSyncTime(), this);
-        std::cout << "Thread: " << rank.rank << " ComputeNextSyncTime: " << threadSync->getNextSyncTime() << std::endl;
     }
-    */
+    
 }
 
 void

@@ -12,7 +12,8 @@
 # distribution.
 #
 
-add_library(timeVortex OBJECT timeVortexPQ.cc)
+add_library(timeVortex OBJECT timeVortexPQ.cc nullMessagePQ.cc
+)
 
 target_include_directories(timeVortex PUBLIC ${SST_TOP_SRC_DIR}/src)
 target_link_libraries(timeVortex PUBLIC sst-config-headers)
