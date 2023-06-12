@@ -430,7 +430,7 @@ SyncManager::computeNextInsert()
     if(timevortex_type == "sst.timevortex.null_message_priority_queue") {
         return;
     }
-    std:;cout << "computeNextInsert: " << rankSync->getNextSyncTime();
+    //std::cout << "computeNextInsert: " << rankSync->getNextSyncTime();
     if ( rankSync->getNextSyncTime() <= threadSync->getNextSyncTime() ) {
         next_sync_type = RANK;
         sim->insertActivity(rankSync->getNextSyncTime(), this);
