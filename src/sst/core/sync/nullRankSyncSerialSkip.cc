@@ -15,6 +15,7 @@
 
 #include "sst/core/event.h"
 #include "sst/core/exit.h"
+#include "sst/core/impl/timevortex/nullMessagePQ.h"
 #include "sst/core/link.h"
 #include "sst/core/profile.h"
 #include "sst/core/serialization/serializer.h"
@@ -23,9 +24,7 @@
 #include "sst/core/timeConverter.h"
 #include "sst/core/warnmacros.h"
 
-#include "sst/core/impl/timevortex/nullMessagePQ.h"
-
-//#include <limits>
+// #include <limits>
 
 
 #if SST_EVENT_PROFILING
@@ -48,14 +47,14 @@ namespace SST {
 
 NullRankSyncSerialSkip::NullRankSyncSerialSkip(RankInfo num_ranks, TimeConverter* UNUSED(minPartTC)) :
     RankSync(num_ranks),
-    //delay(std::numeric_limits<SimTime_t>::max()),
+    // delay(std::numeric_limits<SimTime_t>::max()),
     safe_time(0),
     deserializeTime(0.0)
 
 {
     std::cout << "NullRankSyncSerialSkip" << std::endl;
 
-    max_period     = Simulation_impl::getSimulation()->getMinPartTC();
+    max_period = Simulation_impl::getSimulation()->getMinPartTC();
 }
 
 NullRankSyncSerialSkip::~NullRankSyncSerialSkip()
@@ -77,24 +76,25 @@ NullRankSyncSerialSkip::registerLink(
     const RankInfo& to_rank, const RankInfo& UNUSED(from_rank), const std::string& name, Link* link, SimTime_t latency)
 {
     std::lock_guard<Core::ThreadSafe::Spinlock> slock(lock);
-    //std::cout << "RegisterLink TO: " << to_rank.rank << " FROM: " << from_rank.rank << " Name: " << name << std::endl;
-    SyncQueue* queue;
+    // std::cout << "RegisterLink TO: " << to_rank.rank << " FROM: " << from_rank.rank << " Name: " << name <<
+    // std::endl;
+    SyncQueue*                                  queue;
     if ( comm_map.count(to_rank.rank) == 0 ) {
         queue = comm_map[to_rank.rank].squeue = new SyncQueue();
         comm_map[to_rank.rank].rbuf           = new char[4096];
         comm_map[to_rank.rank].local_size     = 4096;
         comm_map[to_rank.rank].remote_size    = 4096;
         comm_map[to_rank.rank].guarantee_time = 0;
-        comm_map[to_rank.rank].delay = latency;
+        comm_map[to_rank.rank].delay          = latency;
     }
     else {
         queue = comm_map[to_rank.rank].squeue;
-        if(latency < comm_map[to_rank.rank].delay) {
+        if ( latency < comm_map[to_rank.rank].delay ) {
             comm_map[to_rank.rank].delay = latency;
         }
     }
 
-    //std::cout << "Delay of " << latency << " add for rank " << to_rank.rank << std::endl;
+    // std::cout << "Delay of " << latency << " add for rank " << to_rank.rank << std::endl;
     link_maps[to_rank.rank][name] = reinterpret_cast<uintptr_t>(link);
 #ifdef __SST_DEBUG_EVENT_TRACKING__
     link->setSendingComponentInfo("SYNC", "SYNC", "");
@@ -105,8 +105,8 @@ NullRankSyncSerialSkip::registerLink(
 void
 NullRankSyncSerialSkip::finalizeLinkConfigurations()
 {
-    //NOTE:: Hopefully this is called / verify this is called after all registerLinks
-    //std::cout << "Calling initializeSendReceiveBuffers" << std::endl;
+    // NOTE:: Hopefully this is called / verify this is called after all registerLinks
+    // std::cout << "Calling initializeSendReceiveBuffers" << std::endl;
 
     auto timeVortex = Simulation_impl::getSimulation()->getTimeVortex();
 
@@ -121,8 +121,8 @@ NullRankSyncSerialSkip::finalizeLinkConfigurations()
 void
 NullRankSyncSerialSkip::prepareForComplete()
 {
-    //std::cout << "NullRankSyncSerialSkip::prepareForComplete" << std::endl;
-    while(output_buffers.size() > 0) {
+    // std::cout << "NullRankSyncSerialSkip::prepareForComplete" << std::endl;
+    while ( output_buffers.size() > 0 ) {
         testSendComplete();
         receiveData(false);
     }
@@ -139,62 +139,66 @@ NullRankSyncSerialSkip::getDataSize() const
 }
 
 void
-NullRankSyncSerialSkip::calculateSafeTime() {
-    
-    //DEBUG
-    uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
+NullRankSyncSerialSkip::calculateSafeTime()
+{
+
+    // DEBUG
+    uint32_t  my_rank       = Simulation_impl::getSimulation()->getRank().rank;
     SimTime_t current_cycle = Simulation_impl::getSimulation()->getCurrentSimCycle();
-    //END_DEBUG
+    // END_DEBUG
 
 
     SimTime_t new_safe_time = std::numeric_limits<SimTime_t>::max();
     for ( comm_map_t::const_iterator i = comm_map.begin(); i != comm_map.end(); ++i ) {
         new_safe_time = std::min(new_safe_time, i->second.guarantee_time);
     }
-    
-    //DEBUG
-    if(safe_time != new_safe_time) {
-        std::cout << current_cycle << ":" << my_rank << ": safe time updated to " << new_safe_time << std::endl;
-    }
-    //END_DEBUG
+
+    // DEBUG
+    // if ( safe_time != new_safe_time ) {
+    //    std::cout << current_cycle << ":" << my_rank << ": safe time updated to " << new_safe_time << std::endl;
+    //}
+    // END_DEBUG
 
     safe_time = new_safe_time;
 }
 
-SimTime_t 
-NullRankSyncSerialSkip::calculateGuaranteeTime(int rank) {
+SimTime_t
+NullRankSyncSerialSkip::calculateGuaranteeTime(int rank)
+{
     SimTime_t next_activity_time = Simulation_impl::getLocalMinimumNextActivityTime();
     return std::min(next_activity_time, safe_time) + comm_map[rank].delay;
 }
 
-void 
-NullRankSyncSerialSkip::testSendComplete() {
+void
+NullRankSyncSerialSkip::testSendComplete()
+{
     auto iter = output_buffers.begin();
-    while(iter != output_buffers.end()) {
+    while ( iter != output_buffers.end() ) {
         MPI_Status status;
-        int flag = 0;
+        int        flag = 0;
         MPI_Test(iter->getRequest(), &flag, &status);
         auto current = iter;
         ++iter;
-        if(flag) {
+        if ( flag ) {
             output_buffers.erase(current);
-        }        
+        }
     }
 }
 
-void 
-NullRankSyncSerialSkip::sendData(int to_rank) {
+void
+NullRankSyncSerialSkip::sendData(int to_rank)
+{
 #ifdef SST_CONFIG_HAVE_MPI
-    //DEBUG
-    uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
-    //END DEBUG
-    // NOTE not DEBUG, need for future event scheduling
+    // DEBUG
+    uint32_t  my_rank       = Simulation_impl::getSimulation()->getRank().rank;
+    // END DEBUG
+    //  NOTE not DEBUG, need for future event scheduling
     SimTime_t current_cycle = Simulation_impl::getSimulation()->getCurrentSimCycle();
 
 
     NullMessageSentBuffer output_buffer;
     output_buffers.push_back(output_buffer);
-    //last element
+    // last element
     auto iter = output_buffers.rbegin();
 
     iter->setBuffer(comm_map[to_rank].squeue->getData());
@@ -204,73 +208,77 @@ NullRankSyncSerialSkip::sendData(int to_rank) {
 
     // fill in my new guarantee time (which may be from a null message)
     hdr->guarantee_time = calculateGuaranteeTime(to_rank);
-    int                tag = 1;
+    int tag             = 1;
 
     if ( comm_map[to_rank].remote_size < hdr->buffer_size ) {
-        //DEBUG
+        // DEBUG
         std::cout << my_rank << ": sending buffer increase notice to rank " << to_rank << std::endl;
-        //END_DEBUG
+        // END_DEBUG
         hdr->mode = 1;
         MPI_Send(iter->getBuffer(), sizeof(SyncQueue::Header), MPI_BYTE, to_rank, tag, MPI_COMM_WORLD);
         comm_map[to_rank].remote_size = hdr->buffer_size;
-        tag                   = 2;   
+        tag                           = 2;
     }
     else {
         hdr->mode = 0;
     }
-    std::cout << current_cycle << ":" << my_rank << ": sending safe time of " << hdr->guarantee_time << " to " << to_rank << std::endl;
-    // NOTE:: Is there any concern here of out of order arrival?  Global sync had more of a lock step 
+    // std::cout << current_cycle << ":" << my_rank << ": sending safe time of " << hdr->guarantee_time << " to "
+    //           << to_rank << std::endl;
+    //  NOTE:: Is there any concern here of out of order arrival?  Global sync had more of a lock step
     MPI_Isend(iter->getBuffer(), hdr->buffer_size, MPI_BYTE, to_rank, tag, MPI_COMM_WORLD, iter->getRequest());
 
-    NullMessageEvent* ev = new NullMessageEvent(this, to_rank);
-    SimTime_t next_send = current_cycle + comm_map[to_rank].delay;
+    NullMessageEvent* ev        = new NullMessageEvent(this, to_rank);
+    SimTime_t         next_send = current_cycle + comm_map[to_rank].delay; // 0.1 - 1
 
     Simulation_impl::getSimulation()->insertActivity(next_send, ev);
-    //std::cout << current_cycle << ":" << my_rank << ":scheduling next data sent time to " << to_rank << " at time " << next_send << std::endl;
+    // std::cout << current_cycle << ":" << my_rank << ":scheduling next data sent time to " << to_rank << " at time "
+    // << next_send << std::endl;
 
 #endif
 }
 
 void
-NullRankSyncSerialSkip::receiveData(bool blocking) {
+NullRankSyncSerialSkip::receiveData(bool blocking)
+{
 #ifdef SST_CONFIG_HAVE_MPI
 
-    uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
+    uint32_t  my_rank       = Simulation_impl::getSimulation()->getRank().rank;
     SimTime_t current_cycle = Simulation_impl::getSimulation()->getCurrentSimCycle();
 
-    if(comm_map.size() == 0) return;
+    if ( comm_map.size() == 0 ) return;
 
     bool stop = false;
 
     do {
         MPI_Status status;
-        int messages_received = 0;
-        int index = 0;
+        int        messages_received = 0;
+        int        index             = 0;
 
-        if(blocking) {
-            std::cout << current_cycle << ":" << my_rank << ": blocking next event time is " << std::endl;
+        if ( blocking ) {
+            //std::cout << current_cycle << ":" << my_rank << ": blocking next event time is " << std::endl;
             MPI_Waitany(comm_map.size(), requests, &index, &status);
-            std::cout << current_cycle << ":" << my_rank << ": blocking done" << std::endl;
+            //std::cout << current_cycle << ":" << my_rank << ": blocking done" << std::endl;
             messages_received = 1;
-            stop = true;
+            stop              = true;
         }
         else {
-            //std::cout << my_rank << ": test any with size " << comm_map.size() << std::endl;
+            // std::cout << my_rank << ": test any with size " << comm_map.size() << std::endl;
             MPI_Testany(comm_map.size(), requests, &index, &messages_received, &status);
         }
 
-        if(messages_received) {
-            //std::cout << my_rank << ": messages received!" << std::endl;
-            int from_rank = request_map[index];
-            char* buffer = comm_map[from_rank].rbuf;
+        if ( messages_received ) {
+            // std::cout << my_rank << ": messages received!" << std::endl;
+            int   from_rank = request_map[index];
+            char* buffer    = comm_map[from_rank].rbuf;
 
-            SyncQueue::Header* hdr  = reinterpret_cast<SyncQueue::Header*>(buffer);
-            unsigned int       size = hdr->buffer_size;
-            int                mode = hdr->mode;
+            SyncQueue::Header* hdr            = reinterpret_cast<SyncQueue::Header*>(buffer);
+            unsigned int       size           = hdr->buffer_size;
+            int                mode           = hdr->mode;
             SimTime_t          guarantee_time = hdr->guarantee_time;
             assert(comm_map[from_rank].guarantee_time <= guarantee_time);
             // set new guarantee time from this rank
-            std::cout << current_cycle << ":" << my_rank << ": received guarantee time of " << guarantee_time << " from " << from_rank << std::endl;
+            // std::cout << current_cycle << ":" << my_rank << ": received guarantee time of " << guarantee_time
+            //          << " from " << from_rank << std::endl;
 
             comm_map[from_rank].guarantee_time = guarantee_time;
 
@@ -278,11 +286,14 @@ NullRankSyncSerialSkip::receiveData(bool blocking) {
                 // May need to resize the buffer
                 if ( size > comm_map[from_rank].local_size ) {
                     delete[] comm_map[from_rank].rbuf;
-                    comm_map[from_rank].rbuf = new char[size];
+                    comm_map[from_rank].rbuf       = new char[size];
                     comm_map[from_rank].local_size = size;
                 }
-                std::cout << current_cycle << ":" << my_rank << ": received request to increase buffer size" << std::endl;
-                MPI_Recv(comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                std::cout << current_cycle << ":" << my_rank << ": received request to increase buffer size"
+                          << std::endl;
+                MPI_Recv(
+                    comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 2, MPI_COMM_WORLD,
+                    MPI_STATUS_IGNORE);
                 buffer = comm_map[from_rank].rbuf;
             }
 
@@ -306,32 +317,33 @@ NullRankSyncSerialSkip::receiveData(bool blocking) {
 
             activities.clear();
 
-            //requue the next async receive
-            MPI_Irecv(comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 1, MPI_COMM_WORLD, &requests[index]);
-
+            // requue the next async receive
+            MPI_Irecv(
+                comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 1, MPI_COMM_WORLD,
+                &requests[index]);
         }
         else {
             stop = true;
         }
 
-    } while(!stop);
-    //std::cout << my_rank << ": done with received messages" << std::endl;
+    } while ( !stop );
+    // std::cout << my_rank << ": done with received messages" << std::endl;
 #endif
 }
 
 void
-NullRankSyncSerialSkip::initialize() 
+NullRankSyncSerialSkip::initialize()
 {
 #ifdef SST_CONFIG_HAVE_MPI
     uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
 
     requests = new MPI_Request[comm_map.size()];
-    int idx = 0;
-    for ( comm_map_t::iterator i = comm_map.begin(); i != comm_map.end(); ++i, idx++) {
+    int idx  = 0;
+    for ( comm_map_t::iterator i = comm_map.begin(); i != comm_map.end(); ++i, idx++ ) {
         MPI_Irecv(i->second.rbuf, i->second.local_size, MPI_BYTE, i->first, 1, MPI_COMM_WORLD, &requests[idx]);
         std::cout << my_rank << ": scheduled recv from rank " << i->first << " at index " << idx << std::endl;
         request_map[idx] = i->first;
-        
+
         NullMessageEvent* ev = new NullMessageEvent(this, i->first);
         Simulation_impl::getSimulation()->insertActivity(0, ev);
     }
@@ -340,8 +352,14 @@ NullRankSyncSerialSkip::initialize()
 
 void
 NullRankSyncSerialSkip::exchangeLinkUntimedData(int UNUSED_WO_MPI(thread), std::atomic<int>& UNUSED_WO_MPI(msg_count))
+{}
+
+
+void
+NullMessageEvent::execute(void)
 {
-
+    auto exit = Simulation_impl::getSimulation()->getSimulation()->getExit();
+    exit->check();
+    skip->sendData(rank);
 }
-
 } // namespace SST
