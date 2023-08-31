@@ -74,7 +74,7 @@ SimTime_t                 SyncManager::next_rankSync = MAX_SIMTIME_T;
 
 #endif // SST_HIGH_RESOLUTION_CLOCK
 
-#else  // SST_SYNC_PROFILING
+#else // SST_SYNC_PROFILING
 #define SST_SYNC_PROFILE_START
 #define SST_SYNC_PROFILE_STOP
 #endif // SST_SYNC_PROFILING
@@ -336,86 +336,68 @@ void
 SyncManager::execute(void)
 {
     if ( timevortex_type == "sst.timevortex.null_message_priority_queue" ) {
-        // std::cout << "Barrier 3 wait" << std::endl;
-        RankExecBarrier[3].wait();
-        // std::cout << "Barrier 3 exit" << std::endl;
+        return;
+    }
+    SST_SYNC_PROFILE_START
+    // std::cout << "SyncManager::Execute, next sync " << next_rankSync << " " << min_part << std::endl;
+    if ( profile_tools ) profile_tools->syncManagerStart();
 
-        // std::cout << "SyncManager::execute" << std::endl;
+    switch ( next_sync_type ) {
+    case RANK:
+        // Need to make sure all threads have reached the sync to
+        // guarantee that all events have been sent to the appropriate
+        // queues.
+        RankExecBarrier[0].wait();
+
+        // For a rank sync, we will force a thread sync first.  This
+        // will ensure that all events sent between threads will be
+        // flushed into their respective TimeVortices.  We need to do
+        // this to enable any skip ahead optimizations.
+        threadSync->before();
+
+        // Need to make sure everyone has made it through the mutex
+        // and the min time computation is complete
+        RankExecBarrier[1].wait();
+
+        // Now call the actual RankSync
+        rankSync->execute(rank.thread);
+
+        RankExecBarrier[2].wait();
+
+        // Now call the threadSync after() call
+        threadSync->after();
+
+        RankExecBarrier[3].wait();
 
         if ( exit != nullptr && rank.thread == 0 ) exit->check();
-        // std::cout << "Barrier 4 wait" << std::endl;
-        // RankExecBarrier[4].wait();
-        // std::cout << "Barrier 4 exit" << std::endl;
+
+        RankExecBarrier[4].wait();
 
         if ( exit->getGlobalCount() == 0 ) {
             endSimulation(exit->getEndTime());
         }
-        computeNextInsert();
-    }
-    else {
 
+        break;
+    case THREAD:
 
-        SST_SYNC_PROFILE_START
-        // std::cout << "SyncManager::Execute, next sync " << next_rankSync << " " << min_part << std::endl;
-        if ( profile_tools ) profile_tools->syncManagerStart();
+        threadSync->execute();
 
-        switch ( next_sync_type ) {
-        case RANK:
-            // Need to make sure all threads have reached the sync to
-            // guarantee that all events have been sent to the appropriate
-            // queues.
-            RankExecBarrier[0].wait();
-
-            // For a rank sync, we will force a thread sync first.  This
-            // will ensure that all events sent between threads will be
-            // flushed into their respective TimeVortices.  We need to do
-            // this to enable any skip ahead optimizations.
-            threadSync->before();
-
-            // Need to make sure everyone has made it through the mutex
-            // and the min time computation is complete
-            RankExecBarrier[1].wait();
-
-            // Now call the actual RankSync
-            rankSync->execute(rank.thread);
-
-            RankExecBarrier[2].wait();
-
-            // Now call the threadSync after() call
-            threadSync->after();
-
-            RankExecBarrier[3].wait();
-
-            if ( exit != nullptr && rank.thread == 0 ) exit->check();
-
-            RankExecBarrier[4].wait();
-
-            if ( exit->getGlobalCount() == 0 ) {
+        if ( /*num_ranks.rank == 1*/ min_part == MAX_SIMTIME_T ) {
+            if ( exit->getRefCount() == 0 ) {
                 endSimulation(exit->getEndTime());
             }
-
-            break;
-        case THREAD:
-
-            threadSync->execute();
-
-            if ( /*num_ranks.rank == 1*/ min_part == MAX_SIMTIME_T ) {
-                if ( exit->getRefCount() == 0 ) {
-                    endSimulation(exit->getEndTime());
-                }
-            }
-
-            break;
-        default:
-            break;
         }
-        computeNextInsert();
-        RankExecBarrier[5].wait();
 
-        if ( profile_tools ) profile_tools->syncManagerEnd();
-
-        SST_SYNC_PROFILE_STOP
+        break;
+    default:
+        break;
     }
+    computeNextInsert();
+    RankExecBarrier[5].wait();
+
+    if ( profile_tools ) profile_tools->syncManagerEnd();
+
+    SST_SYNC_PROFILE_STOP
 }
 
 /** Cause an exchange of Untimed Data to occur */
