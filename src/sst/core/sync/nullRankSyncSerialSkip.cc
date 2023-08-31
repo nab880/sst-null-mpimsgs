@@ -157,7 +157,7 @@ NullRankSyncSerialSkip::calculateSafeTime()
 
     // DEBUG
     // if ( safe_time != new_safe_time ) {
-    // std::cout << current_cycle << ":" << my_rank << ": safe time updated to " << new_safe_time << std::endl;
+    //    std::cout << current_cycle << ":" << my_rank << ": safe time updated to " << new_safe_time << std::endl;
     //}
     // END_DEBUG
 
@@ -280,7 +280,6 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
             sim->insertActivity(sim->getCurrentSimCycle(), new StopAction());
             return;
         }
-
         if ( messages_received ) {
             // std::cout << my_rank << ": messages received!" << std::endl;
             int   from_rank = request_map[index];
@@ -292,8 +291,8 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
             SimTime_t          guarantee_time = hdr->guarantee_time;
             assert(comm_map[from_rank].guarantee_time <= guarantee_time);
             // set new guarantee time from this rank
-            // std::cout << current_cycle << ":" << my_rank << ": received guarantee time of " << guarantee_time << "
-            // from " << from_rank << std::endl;
+            // std::cout << current_cycle << ":" << my_rank << ": received guarantee time of " << guarantee_time
+            //          << " from " << from_rank << std::endl;
 
             comm_map[from_rank].guarantee_time = guarantee_time;
 

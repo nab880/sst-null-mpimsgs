@@ -80,6 +80,8 @@ public:
 
     SimTime_t getSafeTime() const { return safe_time; }
 
+    SimTime_t getNextSyncTime() override { return getSafeTime() + max_period->getFactor(); }
+
     SimTime_t calculateGuaranteeTime(int rank);
 
     void calculateSafeTime();
@@ -132,7 +134,6 @@ public:
         // std::cout << "NullMessageEvent: " << rank << std::endl;
         skip->sendData(rank);
     }
-
 private:
     NullRankSyncSerialSkip* skip;
     int                     rank;

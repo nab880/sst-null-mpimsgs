@@ -8,7 +8,6 @@
 // This file is part of the SST software package. For license
 // information, see the LICENSE file in the top level directory of the
 // distribution.
-#include <iostream>
 #include "sst_config.h"
 
 #include "sst/core/sync/syncManager.h"
@@ -17,8 +16,8 @@
 #include "sst/core/objectComms.h"
 #include "sst/core/profile/syncProfileTool.h"
 #include "sst/core/simulation_impl.h"
-#include "sst/core/sync/rankSyncParallelSkip.h"
 #include "sst/core/sync/nullRankSyncSerialSkip.h"
+#include "sst/core/sync/rankSyncParallelSkip.h"
 #include "sst/core/sync/rankSyncSerialSkip.h"
 #include "sst/core/sync/threadSyncDirectSkip.h"
 #include "sst/core/sync/threadSyncQueue.h"
@@ -26,6 +25,7 @@
 #include "sst/core/timeConverter.h"
 #include "sst/core/warnmacros.h"
 
+#include <iostream>
 #include <sys/time.h>
 
 #ifdef SST_CONFIG_HAVE_MPI
@@ -74,7 +74,7 @@ SimTime_t                 SyncManager::next_rankSync = MAX_SIMTIME_T;
 
 #endif // SST_HIGH_RESOLUTION_CLOCK
 
-#else // SST_SYNC_PROFILING
+#else  // SST_SYNC_PROFILING
 #define SST_SYNC_PROFILE_START
 #define SST_SYNC_PROFILE_STOP
 #endif // SST_SYNC_PROFILING
@@ -101,7 +101,9 @@ public:
         // cycles so the shared memory regions initialization works.
 
 #ifdef SST_CONFIG_HAVE_MPI
-        if ( thread != 0 ) { return; }
+        if ( thread != 0 ) {
+            return;
+        }
 
         // Do an allreduce to see if there were any messages sent
         int input = msg_count;
@@ -257,9 +259,9 @@ SyncManager::SyncManager(
             b.resize(num_ranks.thread);
         }
         if ( min_part != MAX_SIMTIME_T ) {
-            if ( num_ranks.thread == 1) {
-                if(timevortex_type == "sst.timevortex.null_message_priority_queue") { 
-                    rankSync = new NullRankSyncSerialSkip(num_ranks, minPartTC); 
+            if ( num_ranks.thread == 1 ) {
+                if ( timevortex_type == "sst.timevortex.null_message_priority_queue" ) {
+                    rankSync = new NullRankSyncSerialSkip(num_ranks, minPartTC);
                 }
                 else {
                     rankSync = new RankSyncSerialSkip(num_ranks, minPartTC);
@@ -299,7 +301,8 @@ SyncManager::~SyncManager() {}
 
 /** Register a Link which this Sync Object is responsible for */
 ActivityQueue*
-SyncManager::registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency)
+SyncManager::registerLink(
+    const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency)
 {
     if ( to_rank == from_rank ) {
         return nullptr; // This should never happen
@@ -332,63 +335,87 @@ SyncManager::exchangeLinkInfo()
 void
 SyncManager::execute(void)
 {
-
-    SST_SYNC_PROFILE_START
-    //std::cout << "SyncManager::Execute, next sync " << next_rankSync << " " << min_part << std::endl;
-    if ( profile_tools ) profile_tools->syncManagerStart();
-
-    switch ( next_sync_type ) {
-    case RANK:
-        // Need to make sure all threads have reached the sync to
-        // guarantee that all events have been sent to the appropriate
-        // queues.
-        RankExecBarrier[0].wait();
-
-        // For a rank sync, we will force a thread sync first.  This
-        // will ensure that all events sent between threads will be
-        // flushed into their respective TimeVortices.  We need to do
-        // this to enable any skip ahead optimizations.
-        threadSync->before();
-
-        // Need to make sure everyone has made it through the mutex
-        // and the min time computation is complete
-        RankExecBarrier[1].wait();
-
-        // Now call the actual RankSync
-        rankSync->execute(rank.thread);
-
-        RankExecBarrier[2].wait();
-
-        // Now call the threadSync after() call
-        threadSync->after();
-
+    if ( timevortex_type == "sst.timevortex.null_message_priority_queue" ) {
+        // std::cout << "Barrier 3 wait" << std::endl;
         RankExecBarrier[3].wait();
+        // std::cout << "Barrier 3 exit" << std::endl;
+
+        // std::cout << "SyncManager::execute" << std::endl;
 
         if ( exit != nullptr && rank.thread == 0 ) exit->check();
+        // std::cout << "Barrier 4 wait" << std::endl;
+        // RankExecBarrier[4].wait();
+        // std::cout << "Barrier 4 exit" << std::endl;
 
-        RankExecBarrier[4].wait();
-
-        if ( exit->getGlobalCount() == 0 ) { endSimulation(exit->getEndTime()); }
-
-        break;
-    case THREAD:
-
-        threadSync->execute();
-
-        if ( /*num_ranks.rank == 1*/ min_part == MAX_SIMTIME_T ) {
-            if ( exit->getRefCount() == 0 ) { endSimulation(exit->getEndTime()); }
+        if ( exit->getGlobalCount() == 0 ) {
+            endSimulation(exit->getEndTime());
         }
-
-        break;
-    default:
-        break;
+        computeNextInsert();
     }
-    computeNextInsert();
-    RankExecBarrier[5].wait();
+    else {
 
-    if ( profile_tools ) profile_tools->syncManagerEnd();
 
-    SST_SYNC_PROFILE_STOP
+        SST_SYNC_PROFILE_START
+        // std::cout << "SyncManager::Execute, next sync " << next_rankSync << " " << min_part << std::endl;
+        if ( profile_tools ) profile_tools->syncManagerStart();
+
+        switch ( next_sync_type ) {
+        case RANK:
+            // Need to make sure all threads have reached the sync to
+            // guarantee that all events have been sent to the appropriate
+            // queues.
+            RankExecBarrier[0].wait();
+
+            // For a rank sync, we will force a thread sync first.  This
+            // will ensure that all events sent between threads will be
+            // flushed into their respective TimeVortices.  We need to do
+            // this to enable any skip ahead optimizations.
+            threadSync->before();
+
+            // Need to make sure everyone has made it through the mutex
+            // and the min time computation is complete
+            RankExecBarrier[1].wait();
+
+            // Now call the actual RankSync
+            rankSync->execute(rank.thread);
+
+            RankExecBarrier[2].wait();
+
+            // Now call the threadSync after() call
+            threadSync->after();
+
+            RankExecBarrier[3].wait();
+
+            if ( exit != nullptr && rank.thread == 0 ) exit->check();
+
+            RankExecBarrier[4].wait();
+
+            if ( exit->getGlobalCount() == 0 ) {
+                endSimulation(exit->getEndTime());
+            }
+
+            break;
+        case THREAD:
+
+            threadSync->execute();
+
+            if ( /*num_ranks.rank == 1*/ min_part == MAX_SIMTIME_T ) {
+                if ( exit->getRefCount() == 0 ) {
+                    endSimulation(exit->getEndTime());
+                }
+            }
+
+            break;
+        default:
+            break;
+        }
+        computeNextInsert();
+        RankExecBarrier[5].wait();
+
+        if ( profile_tools ) profile_tools->syncManagerEnd();
+
+        SST_SYNC_PROFILE_STOP
+    }
 }
 
 /** Cause an exchange of Untimed Data to occur */
@@ -427,19 +454,21 @@ SyncManager::prepareForComplete()
 void
 SyncManager::computeNextInsert()
 {
-    if(timevortex_type == "sst.timevortex.null_message_priority_queue") {
-        return;
-    }
-    //std::cout << "computeNextInsert: " << rankSync->getNextSyncTime();
-    if ( rankSync->getNextSyncTime() <= threadSync->getNextSyncTime() ) {
-        next_sync_type = RANK;
+    if ( timevortex_type == "sst.timevortex.null_message_priority_queue" ) {
+        // std::cout << "SycManager scheduled for " << rankSync->getNextSyncTime() << std::endl;
         sim->insertActivity(rankSync->getNextSyncTime(), this);
     }
     else {
-        next_sync_type = THREAD;
-        sim->insertActivity(threadSync->getNextSyncTime(), this);
+        // std::cout << "computeNextInsert: " << rankSync->getNextSyncTime();
+        if ( rankSync->getNextSyncTime() <= threadSync->getNextSyncTime() ) {
+            next_sync_type = RANK;
+            sim->insertActivity(rankSync->getNextSyncTime(), this);
+        }
+        else {
+            next_sync_type = THREAD;
+            sim->insertActivity(threadSync->getNextSyncTime(), this);
+        }
     }
-    
 }
 
 void

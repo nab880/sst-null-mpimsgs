@@ -12,19 +12,17 @@
 #include "sst_config.h"
 
 #include "sst/core/impl/timevortex/nullMessagePQ.h"
-#include "sst/core/sync/nullRankSyncSerialSkip.h"
 
 #include "sst/core/clock.h"
 #include "sst/core/output.h"
+#include "sst/core/sync/nullRankSyncSerialSkip.h"
 
 namespace SST {
 namespace IMPL {
 
-NullMessagePQ::NullMessagePQ(Params& params) :
-    TimeVortexPQ(params),
-    null_skip(nullptr)
+NullMessagePQ::NullMessagePQ(Params& params) : TimeVortexPQ(params), null_skip(nullptr)
 {
-    std::cout << "NullMessagePQ::NullMessagePQ()" << std::endl;
+    // std::cout << "NullMessagePQ::NullMessagePQ()" << std::endl;
 }
 
 NullMessagePQ::~NullMessagePQ()
@@ -39,14 +37,16 @@ NullMessagePQ::~NullMessagePQ()
     }
 }
 
-void NullMessagePQ::setNullSkip(NullRankSyncSerialSkip* skip) {
+void
+NullMessagePQ::setNullSkip(NullRankSyncSerialSkip* skip)
+{
     null_skip = skip;
 }
 
 Activity*
 NullMessagePQ::pop()
 {
-    //uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
+    // uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
 
     assert(null_skip);
 
@@ -56,14 +56,14 @@ NullMessagePQ::pop()
 
     Activity* ret_val = data.top();
 
-    while(ret_val->getDeliveryTime() > null_skip->getSafeTime()) {
-        //std::cout << ret_val->getDeliveryTime() << " " << null_skip->getSafeTime() << std::endl;
+    while ( ret_val->getDeliveryTime() > null_skip->getSafeTime() ) {
+        // std::cout << ret_val->getDeliveryTime() << " " << null_skip->getSafeTime() << std::endl;
         null_skip->receiveData(true);
         null_skip->calculateSafeTime();
         ret_val = data.top();
     }
     null_skip->testSendComplete();
-    
+
     data.pop();
     current_depth--;
 
