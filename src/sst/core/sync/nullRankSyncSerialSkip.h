@@ -33,14 +33,15 @@ namespace SST {
 class SyncQueue;
 class TimeConverter;
 
-class NullMessageSentBuffer {
+class NullMessageSentBuffer
+{
 public:
     NullMessageSentBuffer() : resize(false), buffer(nullptr) {}
     ~NullMessageSentBuffer() {} // buffer deleted elsewhere
 
     char* getBuffer() { return buffer; }
 
-    void setBuffer(char* buf) { buffer = buf;}
+    void setBuffer(char* buf) { buffer = buf; }
 
     bool isResize() const { return resize; }
     void setResize() { resize = true; }
@@ -48,8 +49,8 @@ public:
     MPI_Request* getRequest() { return &request; }
 
 private:
-    bool resize;
-    char* buffer;
+    bool        resize;
+    char*       buffer;
     MPI_Request request;
 };
 
@@ -62,8 +63,9 @@ public:
     virtual ~NullRankSyncSerialSkip();
 
     /** Register a Link which this Sync Object is responsible for */
-    ActivityQueue*
-         registerLink(const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link, SimTime_t latency) override;
+    ActivityQueue* registerLink(
+        const RankInfo& to_rank, const RankInfo& from_rank, const std::string& name, Link* link,
+        SimTime_t latency) override;
 
     /** Cause an exchange of Untimed Data to occur */
     void exchangeLinkUntimedData(int thread, std::atomic<int>& msg_count) override;
@@ -90,9 +92,7 @@ public:
 
     void testSendComplete();
 
-
 private:
-
     MPI_Request* requests;
 
     struct comm_pair
@@ -101,8 +101,8 @@ private:
         char*      rbuf;   // receive buffer
         uint32_t   local_size;
         uint32_t   remote_size;
-        SimTime_t  delay;           // minimum delay over all incoming channels
-        SimTime_t  guarantee_time;  // no message will ever arrive on any incoming link with a receive time less than this
+        SimTime_t  delay;         // minimum delay over all incoming channels
+        SimTime_t guarantee_time; // no message will ever arrive on any incoming link with a receive time less than this
     };
 
     typedef std::map<int, comm_pair>         comm_map_t;
@@ -110,32 +110,32 @@ private:
     typedef std::map<int, int>               request_map_t;
 
     // TimeConverter* period;
-    comm_map_t comm_map;
-    link_map_t link_map;
-    request_map_t request_map;
+    comm_map_t                       comm_map;
+    link_map_t                       link_map;
+    request_map_t                    request_map;
     std::list<NullMessageSentBuffer> output_buffers;
-
-    SimTime_t safe_time;
+    bool                             local_done;
+    SimTime_t                        safe_time;
 
     double deserializeTime;
 
     Core::ThreadSafe::Spinlock lock;
 };
 
-class NullMessageEvent : public Action {
+class NullMessageEvent : public Action
+{
 public:
-    NullMessageEvent(NullRankSyncSerialSkip* skip, int rank) : skip(skip), rank(rank) {
+    NullMessageEvent(NullRankSyncSerialSkip* skip, int rank) : skip(skip), rank(rank) {}
 
-    }
-
-    void execute(void) override {
-        //std::cout << "NullMessageEvent: " << rank << std::endl;
+    void execute(void) override
+    {
+        // std::cout << "NullMessageEvent: " << rank << std::endl;
         skip->sendData(rank);
     }
 
 private:
     NullRankSyncSerialSkip* skip;
-    int rank;
+    int                     rank;
 };
 
 } // namespace SST
