@@ -23,7 +23,7 @@
 #include "sst/core/timeConverter.h"
 #include "sst/core/warnmacros.h"
 
-//#include <limits>
+// #include <limits>
 
 #ifdef SST_CONFIG_HAVE_MPI
 DISABLE_WARN_MISSING_OVERRIDE
@@ -55,13 +55,13 @@ SimTime_t RankSyncSerialSkip::myNextSyncTime = 0;
 
 RankSyncSerialSkip::RankSyncSerialSkip(RankInfo num_ranks, TimeConverter* UNUSED(minPartTC)) :
     RankSync(num_ranks),
-    //delay(std::numeric_limits<SimTime_t>::max()),
-    //guarantee_time(0),    
+    // delay(std::numeric_limits<SimTime_t>::max()),
+    // guarantee_time(0),
     mpiWaitTime(0.0),
     deserializeTime(0.0)
 
 {
-    std::cout << "RankSyncSerialSkip" << std::endl;
+    /// std::cout << "RankSyncSerialSkip" << std::endl;
     max_period     = Simulation_impl::getSimulation()->getMinPartTC();
     myNextSyncTime = max_period->getFactor();
 }
@@ -84,8 +84,9 @@ RankSyncSerialSkip::registerLink(
     const RankInfo& to_rank, const RankInfo& UNUSED(from_rank), const std::string& name, Link* link, SimTime_t latency)
 {
     std::lock_guard<Core::ThreadSafe::Spinlock> slock(lock);
-    std::cout << "RegisterLink TO: " << to_rank.rank << " FROM: " << from_rank.rank << " Name: " << name << std::endl;
-    SyncQueue* queue;
+    // std::cout << "RegisterLink TO: " << to_rank.rank << " FROM: " << from_rank.rank << " Name: " << name <<
+    // std::endl;
+    SyncQueue*                                  queue;
     if ( comm_map.count(to_rank.rank) == 0 ) {
         queue = comm_map[to_rank.rank].squeue = new SyncQueue();
         comm_map[to_rank.rank].rbuf           = new char[4096];
@@ -106,7 +107,7 @@ RankSyncSerialSkip::registerLink(
 void
 RankSyncSerialSkip::finalizeLinkConfigurations()
 {
-    std::cout << "FinalizeLinkConfigurations" << std::endl;
+    // std::cout << "FinalizeLinkConfigurations" << std::endl;
 }
 
 void
@@ -126,7 +127,9 @@ RankSyncSerialSkip::getDataSize() const
 void
 RankSyncSerialSkip::execute(int thread)
 {
-    if ( thread == 0 ) { exchange(); }
+    if ( thread == 0 ) {
+        exchange();
+    }
 }
 
 void
@@ -210,7 +213,7 @@ RankSyncSerialSkip::exchange(void)
 
         std::vector<Activity*> activities;
         activities.clear();
-        ser& activities;
+        ser & activities;
 
         deserializeTime += SST::Core::Profile::getElapsed(deserialStart);
 
@@ -243,10 +246,10 @@ RankSyncSerialSkip::exchange(void)
     // Need to get the local minimum, then do a global minimum
     // SimTime_t input = Simulation_impl::getSimulation()->getNextActivityTime();
     SimTime_t input = Simulation_impl::getLocalMinimumNextActivityTime();
-    std::cout << "RankSyncSerialSkip: Local: " << input;
+    // std::cout << "RankSyncSerialSkip: Local: " << input;
     SimTime_t min_time;
     MPI_Allreduce(&input, &min_time, 1, MPI_UINT64_T, MPI_MIN, MPI_COMM_WORLD);
-    std::cout << " Global min: " << min_time << " Max_PeriodFactor: " << max_period->getFactor() << std::endl;
+    // std::cout << " Global min: " << min_time << " Max_PeriodFactor: " << max_period->getFactor() << std::endl;
     myNextSyncTime = min_time + max_period->getFactor();
 #endif
 }
@@ -255,7 +258,9 @@ void
 RankSyncSerialSkip::exchangeLinkUntimedData(int UNUSED_WO_MPI(thread), std::atomic<int>& UNUSED_WO_MPI(msg_count))
 {
 #ifdef SST_CONFIG_HAVE_MPI
-    if ( thread != 0 ) { return; }
+    if ( thread != 0 ) {
+        return;
+    }
     // Maximum number of outstanding requests is 3 times the number of
     // ranks I communicate with (1 recv, 2 sends per rank)
     MPI_Request sreqs[2 * comm_map.size()];
@@ -318,7 +323,7 @@ RankSyncSerialSkip::exchangeLinkUntimedData(int UNUSED_WO_MPI(thread), std::atom
         ser.start_unpacking(&buffer[sizeof(SyncQueue::Header)], size - sizeof(SyncQueue::Header));
 
         std::vector<Activity*> activities;
-        ser&                   activities;
+        ser & activities;
         for ( unsigned int j = 0; j < activities.size(); j++ ) {
 
             Event* ev = static_cast<Event*>(activities[j]);

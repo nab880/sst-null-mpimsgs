@@ -37,7 +37,7 @@ class NullMessageSentBuffer
 {
 public:
     NullMessageSentBuffer() : resize(false), buffer(nullptr) {}
-    ~NullMessageSentBuffer() {} // buffer deleted elsewhere
+    ~NullMessageSentBuffer() { delete[] buffer; } // buffer deleted elsewhere
 
     char* getBuffer() { return buffer; }
 
@@ -114,10 +114,11 @@ private:
     link_map_t                       link_map;
     request_map_t                    request_map;
     std::list<NullMessageSentBuffer> output_buffers;
-    bool                             local_done;
-    SimTime_t                        safe_time;
+
+    SimTime_t safe_time;
 
     double deserializeTime;
+    bool   local_done;
 
     Core::ThreadSafe::Spinlock lock;
 };

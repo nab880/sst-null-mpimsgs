@@ -54,7 +54,7 @@ NullRankSyncSerialSkip::NullRankSyncSerialSkip(RankInfo num_ranks, TimeConverter
     local_done(false)
 
 {
-    std::cout << "NullRankSyncSerialSkip" << std::endl;
+    // std::cout << "NullRankSyncSerialSkip" << std::endl;
 
     max_period = Simulation_impl::getSimulation()->getMinPartTC();
 }
@@ -203,7 +203,7 @@ NullRankSyncSerialSkip::sendData(int to_rank)
     // last element
     auto iter = output_buffers.rbegin();
 
-    iter->setBuffer(comm_map[to_rank].squeue->getData());
+    iter->setBuffer(comm_map[to_rank].squeue->getDataNewBuffer());
 
     // Cast to Header so we can get/fill in data
     SyncQueue::Header* hdr = reinterpret_cast<SyncQueue::Header*>(iter->getBuffer());
@@ -214,7 +214,7 @@ NullRankSyncSerialSkip::sendData(int to_rank)
 
     if ( comm_map[to_rank].remote_size < hdr->buffer_size ) {
         // DEBUG
-        std::cout << my_rank << ": sending buffer increase notice to rank " << to_rank << std::endl;
+        // std::cout << my_rank << ": sending buffer increase notice to rank " << to_rank << std::endl;
         // END_DEBUG
         hdr->mode = 1;
         MPI_Send(iter->getBuffer(), sizeof(SyncQueue::Header), MPI_BYTE, to_rank, tag, MPI_COMM_WORLD);
@@ -248,7 +248,9 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
     SimTime_t current_cycle = Simulation_impl::getSimulation()->getCurrentSimCycle();
 
     if ( comm_map.size() == 0 ) return;
-
+    if ( Simulation_impl::getSimulation()->endSim == true ) {
+        return;
+    }
     bool stop = false;
 
     Exit* exit = Simulation_impl::getSimulation()->getSimulation()->getExit();
@@ -275,7 +277,7 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
             MPI_Testany(num_requests, requests, &index, &messages_received, &status);
         }
 
-        if ( index == comm_map.size() ) {
+        if ( index == (int)comm_map.size() ) {
             auto* sim = Simulation_impl::getSimulation();
             sim->insertActivity(sim->getCurrentSimCycle(), new StopAction());
             return;
@@ -303,8 +305,6 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
                     comm_map[from_rank].rbuf       = new char[size];
                     comm_map[from_rank].local_size = size;
                 }
-                std::cout << current_cycle << ":" << my_rank << ": received request to increase buffer size"
-                          << std::endl;
                 MPI_Recv(
                     comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 2, MPI_COMM_WORLD,
                     MPI_STATUS_IGNORE);
@@ -319,6 +319,7 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
             std::vector<Activity*> activities;
             activities.clear();
             ser & activities;
+
 
             deserializeTime += SST::Core::Profile::getElapsed(deserialStart);
 
@@ -349,13 +350,13 @@ void
 NullRankSyncSerialSkip::initialize()
 {
 #ifdef SST_CONFIG_HAVE_MPI
-    uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
+    // uint32_t my_rank = Simulation_impl::getSimulation()->getRank().rank;
 
     requests = new MPI_Request[comm_map.size() + 1];
     int idx  = 0;
     for ( comm_map_t::iterator i = comm_map.begin(); i != comm_map.end(); ++i, idx++ ) {
         MPI_Irecv(i->second.rbuf, i->second.local_size, MPI_BYTE, i->first, 1, MPI_COMM_WORLD, &requests[idx]);
-        std::cout << my_rank << ": scheduled recv from rank " << i->first << " at index " << idx << std::endl;
+        // std::cout << my_rank << ": scheduled recv from rank " << i->first << " at index " << idx << std::endl;
         request_map[idx] = i->first;
 
         NullMessageEvent* ev = new NullMessageEvent(this, i->first);

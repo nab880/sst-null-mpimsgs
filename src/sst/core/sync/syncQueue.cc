@@ -84,6 +84,14 @@ SyncQueue::clear()
 }
 
 char*
+SyncQueue::getDataNewBuffer()
+{
+    char* ret = getData();
+    buffer    = new char[buf_size];
+    return ret;
+}
+
+char*
 SyncQueue::getData()
 {
     std::lock_guard<Spinlock> lock(slock);
@@ -92,14 +100,16 @@ SyncQueue::getData()
 
     ser.start_sizing();
 
-    ser& activities;
+    ser & activities;
 
     size_t size = ser.size();
 
     SST_EVENT_PROFILE_SIZE(activities.size(), size)
 
     if ( buf_size < (size + sizeof(SyncQueue::Header)) ) {
-        if ( buffer != nullptr ) { delete[] buffer; }
+        if ( buffer != nullptr ) {
+            delete[] buffer;
+        }
 
         buf_size = size + sizeof(SyncQueue::Header);
         buffer   = new char[buf_size];
@@ -107,7 +117,7 @@ SyncQueue::getData()
 
     ser.start_packing(buffer + sizeof(SyncQueue::Header), size);
 
-    ser& activities;
+    ser & activities;
 
     // Delete all the events
     for ( unsigned int i = 0; i < activities.size(); i++ ) {
