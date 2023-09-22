@@ -32,6 +32,7 @@ namespace SST {
 
 class SyncQueue;
 class TimeConverter;
+class ExchangeManager;
 
 class NullMessageSentBuffer
 {
@@ -52,6 +53,7 @@ private:
     bool        resize;
     char*       buffer;
     MPI_Request request;
+    ExchangeManager *exchangeManager;
 };
 
 
@@ -92,9 +94,6 @@ public:
 
     void testSendComplete();
 
-private:
-    MPI_Request* requests;
-
     struct comm_pair
     {
         SyncQueue* squeue; // SyncQueue
@@ -104,6 +103,9 @@ private:
         SimTime_t  delay;         // minimum delay over all incoming channels
         SimTime_t guarantee_time; // no message will ever arrive on any incoming link with a receive time less than this
     };
+private:
+    MPI_Request* requests;
+    ExchangeManager *exchangeManager;
 
     typedef std::map<int, comm_pair>         comm_map_t;
     typedef std::map<std::string, uintptr_t> link_map_t;

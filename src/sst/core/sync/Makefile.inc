@@ -3,6 +3,8 @@
 #
 
 sst_core_sources += \
+	sync/exchangeManager.cc \
+	sync/exchangeManager.h \
 	sync/nullRankSyncSerialSkip.h \
 	sync/nullRankSyncSerialSkip.cc \
 	sync/rankSyncParallelSkip.h \
@@ -17,4 +19,13 @@ sst_core_sources += \
 	sync/threadSyncDirectSkip.cc \
 	sync/threadSyncSimpleSkip.h \
 	sync/threadSyncSimpleSkip.cc \
-	sync/threadSyncQueue.h
+	sync/threadSyncQueue.h \
+	sync/mpiMessage.cc \
+	sync/mpiMessage.h \
+	sync/mpiShortMessage.cc \
+	sync/mpiShortMessage.h \
+	sync/mpiResizeMessage.cc \
+	sync/mpiResizeMessage.h \
+	sync/mpiLongMessage.cc \
+	sync/mpiLongMessage.h \
+	sync/mpiMessages.h

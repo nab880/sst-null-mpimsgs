@@ -10,9 +10,9 @@
 // distribution.
 
 #include "sst_config.h"
-
+#include "sst/core/sync/exchangeManager.h"
 #include "sst/core/sync/nullRankSyncSerialSkip.h"
-
+#include "sst/core/sync/mpiMessages.h"
 #include "sst/core/event.h"
 #include "sst/core/exit.h"
 #include "sst/core/impl/timevortex/nullMessagePQ.h"
@@ -55,7 +55,6 @@ NullRankSyncSerialSkip::NullRankSyncSerialSkip(RankInfo num_ranks, TimeConverter
 
 {
     // std::cout << "NullRankSyncSerialSkip" << std::endl;
-
     max_period = Simulation_impl::getSimulation()->getMinPartTC();
 }
 
@@ -212,23 +211,9 @@ NullRankSyncSerialSkip::sendData(int to_rank)
     hdr->guarantee_time = calculateGuaranteeTime(to_rank);
     int tag             = 1;
 
-    if ( comm_map[to_rank].remote_size < hdr->buffer_size ) {
-        // DEBUG
-        // std::cout << my_rank << ": sending buffer increase notice to rank " << to_rank << std::endl;
-        // END_DEBUG
-        hdr->mode = 1;
-        MPI_Send(iter->getBuffer(), sizeof(SyncQueue::Header), MPI_BYTE, to_rank, tag, MPI_COMM_WORLD);
-        comm_map[to_rank].remote_size = hdr->buffer_size;
-        tag                           = 2;
-    }
-    else {
-        hdr->mode = 0;
-    }
-    // std::cout << current_cycle << ":" << my_rank << ": sending safe time of " << hdr->guarantee_time << " to "
-    //           << to_rank << std::endl;
-    //  NOTE:: Is there any concern here of out of order arrival?  Global sync had more of a lock step
-    MPI_Isend(iter->getBuffer(), hdr->buffer_size, MPI_BYTE, to_rank, tag, MPI_COMM_WORLD, iter->getRequest());
-
+    mpiMessage *message = exchangeManager->sendMessage(iter->getBuffer(), &comm_map[to_rank], to_rank);
+    message->sendMessage();
+    delete message;
     NullMessageEvent* ev        = new NullMessageEvent(this, to_rank);
     SimTime_t         next_send = current_cycle + comm_map[to_rank].delay;
 
@@ -297,25 +282,12 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
             //          << " from " << from_rank << std::endl;
 
             comm_map[from_rank].guarantee_time = guarantee_time;
-
-            if ( mode == 1 ) {
-                // May need to resize the buffer
-                if ( size > comm_map[from_rank].local_size ) {
-                    delete[] comm_map[from_rank].rbuf;
-                    comm_map[from_rank].rbuf       = new char[size];
-                    comm_map[from_rank].local_size = size;
-                }
-                MPI_Recv(
-                    comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 2, MPI_COMM_WORLD,
-                    MPI_STATUS_IGNORE);
-                buffer = comm_map[from_rank].rbuf;
-            }
-
+	    mpiMessage *message = exchangeManager->completeRequest(comm_map[from_rank].rbuf, &comm_map[from_rank], from_rank);
+	    message->recvMessage();
             auto deserialStart = SST::Core::Profile::now();
 
+	    message->serialize();
             SST::Core::Serialization::serializer ser;
-            ser.start_unpacking(&buffer[sizeof(SyncQueue::Header)], size - sizeof(SyncQueue::Header));
-
             std::vector<Activity*> activities;
             activities.clear();
             ser & activities;
@@ -333,9 +305,8 @@ NullRankSyncSerialSkip::receiveData(bool blocking)
             activities.clear();
 
             // requue the next async receive
-            MPI_Irecv(
-                comm_map[from_rank].rbuf, comm_map[from_rank].local_size, MPI_BYTE, from_rank, 1, MPI_COMM_WORLD,
-                &requests[index]);
+            message->queueIrecv(&requests[index]);
+	    delete message;
         }
         else {
             stop = true;
